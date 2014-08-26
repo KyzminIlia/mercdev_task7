@@ -1,0 +1,13 @@
+VoiceMemos/bin/AndroidManifest.xml
+VoiceMemos/bin/classes/com/example/voicememos/BuildConfig.class
+VoiceMemos/bin/classes/com/example/voicememos/R$attr.class
+VoiceMemos/bin/classes/com/example/voicememos/R$drawable.class
+VoiceMemos/bin/classes/com/example/voicememos/R$string.class
+VoiceMemos/bin/classes/com/example/voicememos/R$style.class
+VoiceMemos/bin/classes/com/example/voicememos/R.class
+VoiceMemos/bin/classes/com/example/voicememos/VoiceMemosActivity.class
+VoiceMemos/bin/classes/com/example/voicememos/VoiceMemosFragment.class
+VoiceMemos/bin/classes/com/example/voicememos/VoiceMemosRecordFragment.class
+VoiceMemos/bin/jarlist.cache
+VoiceMemos/gen/com/example/voicememos/BuildConfig.java
+VoiceMemos/gen/com/example/voicememos/R.java
