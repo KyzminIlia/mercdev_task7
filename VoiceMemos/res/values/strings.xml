@@ -1,5 +1,9 @@
 <resources>
 
     <string name="app_name">Voice memos</string>
+    <string name="remainig_time">секунд осталось до конца записи</string>
+    <string name="cancel_button_text">Cancel</string>
+    <string name="save_button_text">Save</string>
+    <string name="dialog_label">Введите имя заметки</string>
 
 </resources>
