@@ -84,4 +84,5 @@ public class VoiceMemosFragment extends Fragment implements OnItemClickListener 
             stopPlaying();
         startPlaying(listAdapter.getItem(position));
     }
+
 }

@@ -26,6 +26,14 @@ public class VoiceMemosRecordFragment extends Fragment implements OnClickListene
     private SaveVoiceMemoDialog saveDialog;
     private MediaRecorder mediaRecorder;
     private CountDownTimer timer;
+    private boolean isRecord = false;
+
+    @Override
+    public void onDestroy() {
+        if (isRecord)
+            stopRecording();
+        super.onDestroy();
+    }
 
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
@@ -50,10 +58,10 @@ public class VoiceMemosRecordFragment extends Fragment implements OnClickListene
         memoFile = new File(memoFile.getPath(), "voicememo.3gp");
         mediaRecorder = new MediaRecorder();
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT);
         mediaRecorder.setOutputFile(memoFile.getPath());
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+        isRecord = true;
         try {
             mediaRecorder.prepare();
         } catch (IOException e) {
@@ -67,6 +75,7 @@ public class VoiceMemosRecordFragment extends Fragment implements OnClickListene
     private void stopRecording() {
         mediaRecorder.stop();
         mediaRecorder.release();
+        isRecord = false;
         mediaRecorder = null;
     }
 
@@ -102,8 +111,8 @@ public class VoiceMemosRecordFragment extends Fragment implements OnClickListene
 
                 @Override
                 public void onTick(long millisUntilFinished) {
-                        countDownTextView.setVisibility(TextView.VISIBLE);
-                        countDownTextView.setText(millisUntilFinished / 1000 + " " + getString(R.string.remainig_time));
+                    countDownTextView.setVisibility(TextView.VISIBLE);
+                    countDownTextView.setText(millisUntilFinished / 1000 + " " + getString(R.string.remainig_time));
                 }
 
                 @Override
