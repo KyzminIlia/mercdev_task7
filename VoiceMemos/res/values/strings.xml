@@ -5,5 +5,7 @@
     <string name="cancel_button_text">Cancel</string>
     <string name="save_button_text">Save</string>
     <string name="dialog_label">Введите имя заметки</string>
+    <string name="empty_list">Вы ещё не записали ни одной голосовой заметки</string>
+    <string name="default_memo_name">Voice Memo </string>
 
 </resources>

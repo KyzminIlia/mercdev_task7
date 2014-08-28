@@ -1,9 +1,15 @@
 package com.example.voicememos;
 
+import java.io.File;
+import java.io.IOException;
+
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.os.Environment;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -18,6 +24,8 @@ public class VoiceMemosRecordFragment extends Fragment implements OnClickListene
     private TextView countDownTextView;
     private int backgroundImage;
     private SaveVoiceMemoDialog saveDialog;
+    private MediaRecorder mediaRecorder;
+    private CountDownTimer timer;
 
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
@@ -33,12 +41,42 @@ public class VoiceMemosRecordFragment extends Fragment implements OnClickListene
         super.onResume();
     }
 
+    private void startRecording() {
+
+        File memoFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).getPath(),
+                "/VoiceMemos/");
+        if (!memoFile.exists())
+            memoFile.mkdir();
+        memoFile = new File(memoFile.getPath(), "voicememo.3gp");
+        mediaRecorder = new MediaRecorder();
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mediaRecorder.setOutputFile(memoFile.getPath());
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+
+        try {
+            mediaRecorder.prepare();
+        } catch (IOException e) {
+            Log.d(MEMOS_RECORD_FRAGMENT_TAG, "prepare() failed");
+            e.printStackTrace();
+        }
+
+        mediaRecorder.start();
+    }
+
+    private void stopRecording() {
+        mediaRecorder.stop();
+        mediaRecorder.release();
+        mediaRecorder = null;
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         setRetainInstance(true);
         saveDialog = new SaveVoiceMemoDialog();
         backgroundImage = R.drawable.record_icon;
         super.onCreate(savedInstanceState);
+        mediaRecorder = new MediaRecorder();
     }
 
     @Override
@@ -56,14 +94,16 @@ public class VoiceMemosRecordFragment extends Fragment implements OnClickListene
             recordButton.setBackgroundResource(R.drawable.record_icon);
             backgroundImage = R.drawable.record_icon;
             saveDialog.show(getActivity().getSupportFragmentManager(), SaveVoiceMemoDialog.DIALOG_TAG);
+            stopRecording();
+            timer.cancel();
         } else {
             stop = true;
-            new CountDownTimer(10000, 1000) {
+            timer = new CountDownTimer(11000, 1000) {
 
                 @Override
                 public void onTick(long millisUntilFinished) {
-                    countDownTextView.setVisibility(TextView.VISIBLE);
-                    countDownTextView.setText(millisUntilFinished / 1000 + " " + getString(R.string.remainig_time));
+                        countDownTextView.setVisibility(TextView.VISIBLE);
+                        countDownTextView.setText(millisUntilFinished / 1000 + " " + getString(R.string.remainig_time));
                 }
 
                 @Override
@@ -72,11 +112,13 @@ public class VoiceMemosRecordFragment extends Fragment implements OnClickListene
                     stop = false;
                     recordButton.setBackgroundResource(R.drawable.record_icon);
                     saveDialog.show(getActivity().getSupportFragmentManager(), SaveVoiceMemoDialog.DIALOG_TAG);
+                    stopRecording();
 
                 }
             }.start();
             recordButton.setBackgroundResource(R.drawable.stop_record_icon);
             backgroundImage = R.drawable.stop_record_icon;
+            startRecording();
         }
 
     }
