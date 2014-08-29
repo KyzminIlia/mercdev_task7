@@ -13,6 +13,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListAdapter;
 import android.widget.TextView;
 
@@ -25,17 +26,22 @@ public class MemoListAdapter extends ArrayAdapter<String> implements ListAdapter
     public MemoListAdapter(Context context, int resource) {
         super(context, resource);
         mContext = context;
-        dateTime = (HashSet<String>) ((Activity) mContext).getPreferences(0).getStringSet(
-                SaveVoiceMemoDialog.PREFS_DATE_TIME, null);
+        dateTime = (HashSet<String>) ((Activity) context).getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX,
+                0).getStringSet(VoiceMemosRecordActivity.PREFS_DATE_TIME, null);
         if (dateTime != null) {
             fileList = getVoiceMemosDirectory().list();
             if (fileList != null)
                 fromSetToList();
             else {
-                ((Activity) mContext).getPreferences(0).edit().remove(SaveVoiceMemoDialog.PREFS_DATE_TIME)
+                ((Activity) mContext).getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit()
+                        .remove(VoiceMemosRecordActivity.PREFS_DATE_TIME)
                         .remove(VoiceMemosActivity.PREFS_LAST_INDEX_DEFAULT_NAME).commit();
 
             }
+        } else {
+            ((Activity) mContext).getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit()
+                    .remove(VoiceMemosRecordActivity.PREFS_DATE_TIME)
+                    .remove(VoiceMemosActivity.PREFS_LAST_INDEX_DEFAULT_NAME).commit();
         }
 
     }
@@ -62,6 +68,7 @@ public class MemoListAdapter extends ArrayAdapter<String> implements ListAdapter
         }
         TextView memoName = (TextView) convertView.findViewById(R.id.memo_name_list);
         TextView dataTimeLabel = (TextView) convertView.findViewById(R.id.data_time_memo_label);
+
         memoName.setText(name);
         dataTimeLabel.setText(dateTimeList.get(position));
 

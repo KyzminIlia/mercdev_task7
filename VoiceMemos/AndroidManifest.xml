@@ -23,6 +23,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name="VoiceMemosRecordActivity"></activity>
+        <service android:name="RecordService"></service>
     </application>
 
 </manifest>

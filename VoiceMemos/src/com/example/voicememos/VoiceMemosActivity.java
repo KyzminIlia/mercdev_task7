@@ -1,17 +1,15 @@
 package com.example.voicememos;
 
-import java.security.acl.LastOwnerException;
-import java.util.ArrayList;
-import java.util.Calendar;
+import java.io.IOException;
 import java.util.List;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
-import android.content.SharedPreferences.Editor;
+import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.LocalBroadcastManager;
@@ -19,8 +17,13 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ListView;
+import android.widget.AdapterView.OnItemClickListener;
 
-public class VoiceMemosActivity extends FragmentActivity {
+public class VoiceMemosActivity extends FragmentActivity implements OnItemClickListener {
 
     public static final String ACTIVITY_TAG = VoiceMemosActivity.class.getSimpleName();
 
@@ -28,39 +31,56 @@ public class VoiceMemosActivity extends FragmentActivity {
     public static final String ACTION_BACK_TO_MAIN = "BACK_TO_MAIN";
 
     public static final String PREFS_LAST_INDEX_DEFAULT_NAME = "LAST_INDEX";
+    public static final String PREFS_DEFAULT_INDEX = "DEFAULT_INDEX";
 
     private boolean isInRecordingFragment = false;
 
     private BroadcastReceiver receiver;
+    private MediaPlayer mediaPlayer;
+    private boolean isPlaying;
+    private ListView memoList;
+
+    private MemoListAdapter listAdapter;
+
+    private int prevPosition = -1;
+
+    private void startPlaying(String mFileName) {
+        mediaPlayer = new MediaPlayer();
+        try {
+            mediaPlayer.setDataSource(mFileName);
+            mediaPlayer.prepare();
+            mediaPlayer.start();
+            isPlaying = true;
+        } catch (IOException e) {
+            Log.d(ACTIVITY_TAG, "prepare() failed");
+            e.printStackTrace();
+        }
+    }
+
+    private void stopPlaying() {
+        isPlaying = false;
+        mediaPlayer.reset();
+        mediaPlayer.release();
+        mediaPlayer = null;
+    }
 
     @Override
     protected void onCreate(Bundle saveInstance) {
         super.onCreate(saveInstance);
-        if (getCurrentFragment() == null) {
-            VoiceMemosFragment currentFragment = new VoiceMemosFragment();
-            getSupportFragmentManager().beginTransaction()
-                    .replace(android.R.id.content, currentFragment, VoiceMemosFragment.MEMOS_FRAGMENT_TAG)
-                    .commitAllowingStateLoss();
-            Log.d(ACTIVITY_TAG, "current fragment: " + currentFragment.getTag());
-        } else {
-            Fragment currentFragment = getCurrentFragment();
-            getSupportFragmentManager().beginTransaction()
-                    .replace(android.R.id.content, currentFragment, currentFragment.getTag()).commitAllowingStateLoss();
-            Log.d(ACTIVITY_TAG, "current fragment: " + currentFragment.getTag());
-        }
+        Log.d(ACTIVITY_TAG, "onCreate() activity with hash " + hashCode());
 
         receiver = new BroadcastReceiver() {
 
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (intent.getAction().equals(ACTION_SAVE_MEMO)) {
+                if (intent.getAction().equals(ACTION_SAVE_MEMO) && !isFinishing()) {
+                    isInRecordingFragment = false;
+                    memoList.invalidateViews();
 
-                    isInRecordingFragment = false;
-                    replaceToMemosFragment();
                 }
-                if (intent.getAction().equals(ACTION_BACK_TO_MAIN)) {
+                if (intent.getAction().equals(ACTION_BACK_TO_MAIN) && !isFinishing()) {
                     isInRecordingFragment = false;
-                    replaceToMemosFragment();
+
                 }
                 Log.d(ACTIVITY_TAG, "Receive message");
 
@@ -69,22 +89,13 @@ public class VoiceMemosActivity extends FragmentActivity {
         IntentFilter intentFilter = new IntentFilter(ACTION_SAVE_MEMO);
         intentFilter.addAction(ACTION_BACK_TO_MAIN);
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
-    }
-
-    private Fragment getCurrentFragment() {
-        Fragment current = null;
-        if (getFragmentTag() != null)
-            current = (Fragment) getSupportFragmentManager().findFragmentByTag(getFragmentTag());
-        return current;
-    }
-
-    private String getFragmentTag() {
-        String currentFragmentTag = null;
-        List<Fragment> list = getSupportFragmentManager().getFragments();
-        if (getSupportFragmentManager().getFragments() != null)
-            currentFragmentTag = getSupportFragmentManager().getFragments()
-                    .get(getSupportFragmentManager().getFragments().size() - 1).getTag();
-        return currentFragmentTag;
+        setContentView(R.layout.a_memos);
+        memoList = (ListView) findViewById(R.id.memos_list);
+        memoList.setEmptyView(findViewById(android.R.id.empty));
+        listAdapter = new MemoListAdapter(this, R.layout.list_item);
+        memoList.setAdapter(listAdapter);
+        memoList.setOnItemClickListener(this);
+        memoList.invalidateViews();
     }
 
     @Override
@@ -101,9 +112,8 @@ public class VoiceMemosActivity extends FragmentActivity {
             case R.id.action_add_memos:
                 if (!isInRecordingFragment) {
                     isInRecordingFragment = true;
-                    replaceToRecordFragment();
+                    startActivity(new Intent(this, VoiceMemosRecordActivity.class));
                 } else
-
                     return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -118,26 +128,26 @@ public class VoiceMemosActivity extends FragmentActivity {
         super.onBackPressed();
     }
 
-    private void replaceToRecordFragment() {
-
-        VoiceMemosRecordFragment replaceFragment = new VoiceMemosRecordFragment();
-        if (!isFinishing()) {
-            getSupportFragmentManager().beginTransaction()
-                    .replace(android.R.id.content, replaceFragment, VoiceMemosRecordFragment.MEMOS_RECORD_FRAGMENT_TAG)
-                    .commitAllowingStateLoss();
-            Log.d(ACTIVITY_TAG, "fragment replaced to:  " + replaceFragment.getTag());
-        }
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
     }
 
-    private void replaceToMemosFragment() {
+    @Override
+    protected void onDestroy() {
+        Log.d(ACTIVITY_TAG, "onDestroy()");
+        super.onDestroy();
+    }
 
-        VoiceMemosFragment replaceFragment = new VoiceMemosFragment();
-        if (!isFinishing()) {
-            getSupportFragmentManager().beginTransaction()
-                    .replace(android.R.id.content, replaceFragment, VoiceMemosFragment.MEMOS_FRAGMENT_TAG)
-                    .commitAllowingStateLoss();
-            Log.d(ACTIVITY_TAG, "fragment replaced to:  " + replaceFragment.getTag());
-        }
+    @Override
+    public void onItemClick(AdapterView<?> parentView, View childView, int position, long id) {
+        if (isPlaying)
+            stopPlaying();
+        if (prevPosition != position) {
+            startPlaying(listAdapter.getItem(position));
+            prevPosition = position;
+        } else
+            prevPosition = -1;
     }
 
 }
