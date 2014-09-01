@@ -56,6 +56,8 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
     public void onBackPressed() {
         LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(new Intent(ACTION_STOP_RECORD));
         stopService(serviceIntent);
+        new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).getPath(),
+                "/VoiceMemos/voicememo" + getString(R.string.deafult_extension)).delete();
         finish();
         super.onBackPressed();
     }
