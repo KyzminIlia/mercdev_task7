@@ -25,6 +25,7 @@
         </activity>
         <activity android:name="VoiceMemosRecordActivity"></activity>
         <service android:name="RecordService"></service>
+        <service android:name="PlayerService"></service>
     </application>
 
 </manifest>

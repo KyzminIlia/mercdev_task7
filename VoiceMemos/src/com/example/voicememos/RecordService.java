@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.MediaRecorder;
+import android.os.Binder;
 import android.os.CountDownTimer;
 import android.os.Environment;
 import android.os.IBinder;
@@ -20,76 +21,24 @@ public class RecordService extends Service {
 
     public static final String SERVICE_TAG = RecordService.class.getSimpleName();
 
-    public static final String ACTION_UPDATE_TIME = "UPDATE_TIME";
-    public static final String ACTION_FINISH = "FINISH";
-
-    public static final String EXTRA_TIME = "TIME_UNTIL";
-
     private MediaRecorder mediaRecorder;
-    private CountDownTimer timer;
-    private BroadcastReceiver receiver;
+    private IBinder binder = new RecordBinder();
+    private boolean isRecorded;
 
     @Override
     public void onDestroy() {
-        if (mediaRecorder != null) {
-            stopRecording();
-            Log.d(SERVICE_TAG, "recorder stopped onDestroy()");
-        }
-        timer.cancel();
         Log.d(SERVICE_TAG, "onDestroy()");
         super.onDestroy();
     }
 
     @Override
     public void onCreate() {
+        Log.d(SERVICE_TAG, "onCreate()");
         super.onCreate();
-        receiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context arg0, Intent intent) {
-                if (intent.getAction().equals(VoiceMemosRecordActivity.ACTION_STOP_RECORD)) {
-                    Log.d(SERVICE_TAG, "recorder stopped on ACTION_STOP");
-                    timer.cancel();
-                    stopRecording();
-                }
-            }
-        };
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(VoiceMemosRecordActivity.ACTION_STOP_RECORD);
-        LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(receiver, intentFilter);
-        Log.d(SERVICE_TAG, "service onCreate()");
 
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent.getAction().equals(VoiceMemosRecordActivity.ACTION_START_RECORD)) {
-            Log.d(SERVICE_TAG, "recorder started onStartCommand");
-            startRecording();
-            timer = new CountDownTimer(11000, 1000) {
-
-                @Override
-                public void onTick(long millisUntilFinished) {
-                    Intent tickIntent = new Intent(ACTION_UPDATE_TIME);
-                    tickIntent.putExtra(EXTRA_TIME, (millisUntilFinished - 1) / 1000);
-                    LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(tickIntent);
-                    Log.d(SERVICE_TAG, "onTick()");
-                }
-
-                @Override
-                public void onFinish() {
-                    Log.d(SERVICE_TAG, "recorder stopped onFinish()");
-                    Intent finishIntent = new Intent(ACTION_FINISH);
-                    LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(finishIntent);
-                    stopRecording();
-
-                }
-            }.start();
-
-        }
-        return super.onStartCommand(intent, flags, startId);
-    }
-
-    private void startRecording() {
+    public void startRecording() {
 
         File memoFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).getPath(),
                 "/VoiceMemos/");
@@ -109,20 +58,37 @@ public class RecordService extends Service {
         }
 
         mediaRecorder.start();
+        isRecorded = true;
     }
 
-    private void stopRecording() {
+    public void stopRecording() {
         Log.d(SERVICE_TAG, "recorder stopped in stoprecording. MediaRecorder is " + mediaRecorder);
         if (mediaRecorder != null) {
             mediaRecorder.stop();
             mediaRecorder.reset();
             mediaRecorder.release();
             mediaRecorder = null;
+            isRecorded = false;
         }
     }
 
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        return binder;
+    }
+
+    public boolean isRecorded() {
+        return isRecorded;
+    }
+
+    public void setRecorded(boolean isRecorded) {
+        this.isRecorded = isRecorded;
+    }
+
+    public class RecordBinder extends Binder {
+        RecordService getService() {
+            return RecordService.this;
+        }
+
     }
 }

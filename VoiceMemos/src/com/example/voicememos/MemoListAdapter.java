@@ -2,6 +2,8 @@ package com.example.voicememos;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -26,22 +28,10 @@ public class MemoListAdapter extends ArrayAdapter<String> implements ListAdapter
     public MemoListAdapter(Context context, int resource) {
         super(context, resource);
         mContext = context;
-        dateTime = (HashSet<String>) ((Activity) context).getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX,
-                0).getStringSet(VoiceMemosRecordActivity.PREFS_DATE_TIME, null);
-        if (dateTime != null) {
-            fileList = getVoiceMemosDirectory().list();
-            if (fileList != null)
-                fromSetToList();
-            else {
-                ((Activity) mContext).getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit()
-                        .remove(VoiceMemosRecordActivity.PREFS_DATE_TIME)
-                        .remove(VoiceMemosActivity.PREFS_LAST_INDEX_DEFAULT_NAME).commit();
-
-            }
-        } else {
-            ((Activity) mContext).getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit()
-                    .remove(VoiceMemosRecordActivity.PREFS_DATE_TIME)
-                    .remove(VoiceMemosActivity.PREFS_LAST_INDEX_DEFAULT_NAME).commit();
+        fileList = getVoiceMemosDirectory().list();
+        if (fileList == null) {
+            ((Activity) context).getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit()
+                    .remove(VoiceMemosActivity.PREFS_LAST_INDEX_DEFAULT_NAME);
         }
 
     }
@@ -64,13 +54,15 @@ public class MemoListAdapter extends ArrayAdapter<String> implements ListAdapter
     public View getView(int position, View convertView, ViewGroup parent) {
         String name = fileList[position];
         if (convertView == null) {
-            convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_item, null);
+            convertView = LayoutInflater.from(getContext()).inflate(R.layout.i_memo, null);
         }
         TextView memoName = (TextView) convertView.findViewById(R.id.memo_name_list);
         TextView dataTimeLabel = (TextView) convertView.findViewById(R.id.data_time_memo_label);
+        Calendar date = Calendar.getInstance();
+        File currentFile = new File(getVoiceMemosDirectory() + "/" + name);
 
         memoName.setText(name);
-        dataTimeLabel.setText(dateTimeList.get(position));
+        dataTimeLabel.setText(getFileDataAndTime(currentFile));
 
         return convertView;
     }
@@ -90,5 +82,51 @@ public class MemoListAdapter extends ArrayAdapter<String> implements ListAdapter
         while (iterator.hasNext()) {
             dateTimeList.add((String) iterator.next());
         }
+    }
+
+    private String getFileDataAndTime(File file) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(file.lastModified());
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+        int month = calendar.get(Calendar.MONTH) + 1;
+        int year = calendar.get(Calendar.YEAR);
+        int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        int minute = calendar.get(Calendar.MINUTE);
+        int second = calendar.get(Calendar.SECOND);
+        String formatedDay;
+        String formatedMonth;
+        String formatedMinute;
+        String formatedHour;
+        String formatedSecond;
+
+        if (day < 10)
+            formatedDay = "0" + day;
+        else
+            formatedDay = "" + day;
+
+        if (month < 10)
+            formatedMonth = "0" + month;
+        else
+            formatedMonth = "" + month;
+
+        if (hour < 10)
+            formatedHour = "0" + hour;
+        else
+            formatedHour = "" + hour;
+
+        if (second < 10)
+            formatedSecond = "0" + second;
+        else
+            formatedSecond = "" + second;
+
+        if (minute < 10)
+            formatedMinute = "0" + minute;
+        else
+            formatedMinute = "" + minute;
+
+        String time = formatedHour + ":" + formatedMinute + ":" + formatedSecond;
+        String date = formatedDay + "/" + formatedMonth + "/" + year;
+        String dateTime = date + "\n" + time;
+        return dateTime;
     }
 }

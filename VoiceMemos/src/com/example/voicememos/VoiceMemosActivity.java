@@ -3,17 +3,23 @@ package com.example.voicememos;
 import java.io.IOException;
 import java.util.List;
 
+import com.example.voicememos.PlayerService.PlayerBinder;
+
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -36,37 +42,27 @@ public class VoiceMemosActivity extends FragmentActivity implements OnItemClickL
     private boolean isInRecordingFragment = false;
 
     private BroadcastReceiver receiver;
-    private MediaPlayer mediaPlayer;
-    private boolean isPlaying;
+    private boolean isBinded;
     private ListView memoList;
 
     private MemoListAdapter listAdapter;
 
     private int prevPosition = -1;
 
-    private void startPlaying(String mFileName) {
-        mediaPlayer = new MediaPlayer();
-        try {
-            mediaPlayer.setDataSource(mFileName);
-            mediaPlayer.prepare();
-            mediaPlayer.start();
-            isPlaying = true;
-        } catch (IOException e) {
-            Log.d(ACTIVITY_TAG, "prepare() failed");
-            e.printStackTrace();
-        }
-    }
+    private PlayerService playerService;
 
-    private void stopPlaying() {
-        isPlaying = false;
-        mediaPlayer.reset();
-        mediaPlayer.release();
-        mediaPlayer = null;
+    @Override
+    protected void onStart() {
+        super.onStart();
+        Intent playerServiceIntent = new Intent(this, PlayerService.class);
+        bindService(playerServiceIntent, connection, Context.BIND_AUTO_CREATE);
+
     }
 
     @Override
     protected void onCreate(Bundle saveInstance) {
         super.onCreate(saveInstance);
+        startService(new Intent(this, PlayerService.class));
         Log.d(ACTIVITY_TAG, "onCreate() activity with hash " + hashCode());
 
         receiver = new BroadcastReceiver() {
@@ -92,8 +88,9 @@ public class VoiceMemosActivity extends FragmentActivity implements OnItemClickL
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
         setContentView(R.layout.a_memos);
         memoList = (ListView) findViewById(R.id.memos_list);
-        memoList.setEmptyView(findViewById(android.R.id.empty));
-        listAdapter = new MemoListAdapter(this, R.layout.list_item);
+        View emptyView = LayoutInflater.from(this).inflate(R.layout.l_empty_view, null);
+        memoList.setEmptyView(emptyView);
+        listAdapter = new MemoListAdapter(this, R.layout.i_memo);
         memoList.setAdapter(listAdapter);
         memoList.setOnItemClickListener(this);
         memoList.invalidateViews();
@@ -105,6 +102,14 @@ public class VoiceMemosActivity extends FragmentActivity implements OnItemClickL
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_add, menu);
         return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    protected void onStop() {
+        if (isBinded)
+            unbindService(connection);
+        isBinded = false;
+        super.onStop();
     }
 
     @Override
@@ -142,13 +147,30 @@ public class VoiceMemosActivity extends FragmentActivity implements OnItemClickL
 
     @Override
     public void onItemClick(AdapterView<?> parentView, View childView, int position, long id) {
-        if (isPlaying)
-            stopPlaying();
+
+        if (playerService.isPlayed())
+            playerService.stopPlaying();
         if (prevPosition != position) {
-            startPlaying(listAdapter.getItem(position));
+            playerService.startPlaying(listAdapter.getItem(position));
             prevPosition = position;
         } else
             prevPosition = -1;
     }
+
+    private ServiceConnection connection = new ServiceConnection() {
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            isBinded = false;
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            PlayerBinder binder = (PlayerBinder) service;
+            playerService = binder.getService();
+            isBinded = true;
+
+        }
+    };
 
 }

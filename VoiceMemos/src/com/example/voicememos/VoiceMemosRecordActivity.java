@@ -1,23 +1,21 @@
 package com.example.voicememos;
 
 import java.io.File;
-import java.util.Calendar;
-import java.util.HashSet;
-import java.util.Set;
 
-import android.app.ActivityManager;
-import android.app.ActivityManager.RunningServiceInfo;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Environment;
+import android.os.IBinder;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -27,6 +25,8 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import com.example.voicememos.RecordService.RecordBinder;
 
 public class VoiceMemosRecordActivity extends FragmentActivity implements OnClickListener {
     public final static String MEMOS_RECORD_ACTIVITY_TAG = VoiceMemosRecordActivity.class.getSimpleName();
@@ -45,17 +45,37 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
     private int backgroundImage;
 
     private CountDownTimer timer;
-    private boolean isRecord = false;
+    private boolean isBinded = false;
     private BroadcastReceiver receiver;
     private String formatedIndex;
     private Intent saveMemoIntent;
-    private Set<String> listDateTime;
     private boolean isDialogShowed = false;
+
+    RecordService recordService;
+
+    @Override
+    protected void onStop() {
+        if (isBinded)
+            unbindService(connection);
+        isBinded = false;
+        super.onStop();
+    }
+
+    @Override
+    protected void onStart() {
+        Intent recordServiceIntent = new Intent(this, RecordService.class);
+        bindService(recordServiceIntent, connection, Context.BIND_AUTO_CREATE);
+
+        super.onStart();
+    }
 
     @Override
     public void onBackPressed() {
         LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(new Intent(ACTION_STOP_RECORD));
-        stopService(serviceIntent);
+        if (recordService.isRecorded()) {
+            recordService.stopRecording();
+            unbindService(connection);
+        }
         new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).getPath(),
                 "/VoiceMemos/voicememo" + getString(R.string.deafult_extension)).delete();
         finish();
@@ -75,9 +95,7 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        serviceIntent = new Intent(this, RecordService.class);
-        serviceIntent.setAction(ACTION_START_RECORD);
+        startService(new Intent(this, RecordService.class));
         backgroundImage = R.drawable.record_icon;
         setContentView(R.layout.a_record_memos);
         recordButton = (ImageButton) findViewById(R.id.record_button);
@@ -87,74 +105,66 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
 
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (intent.getAction().equals(VoiceMemosActivity.ACTION_SAVE_MEMO) && !isFinishing()) {
+                if (intent.getAction().equals(VoiceMemosActivity.ACTION_SAVE_MEMO)) {
                     finish();
                 }
-                if (intent.getAction().equals(VoiceMemosActivity.ACTION_BACK_TO_MAIN) && !isFinishing()) {
+                if (intent.getAction().equals(VoiceMemosActivity.ACTION_BACK_TO_MAIN)) {
                     finish();
                 }
-                if (intent.getAction().equals(RecordService.ACTION_UPDATE_TIME) && !isFinishing()) {
+
+            }
+        };
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(VoiceMemosActivity.ACTION_SAVE_MEMO);
+        intentFilter.addAction(VoiceMemosActivity.ACTION_BACK_TO_MAIN);
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
+
+    }
+
+    @Override
+    public void onClick(View v) {
+
+        if (recordService.isRecorded()) {
+
+            recordButton.setBackgroundResource(R.drawable.record_icon);
+            backgroundImage = R.drawable.record_icon;
+            recordService.stopRecording();
+            showAlertDialog();
+            isDialogShowed = true;
+            getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit().putBoolean(PREFS_SHOW_DIALOG, true)
+                    .commit();
+
+        } else {
+
+            recordButton.setBackgroundResource(R.drawable.stop_record_icon);
+            backgroundImage = R.drawable.stop_record_icon;
+            recordService.startRecording();
+            timer = new CountDownTimer(11000, 1000) {
+
+                @Override
+                public void onTick(long millisUntilFinished) {
+
+                    Log.d(MEMOS_RECORD_ACTIVITY_TAG, "onTick()");
                     countDownTextView.setVisibility(TextView.VISIBLE);
-                    countDownTextView.setText(intent.getLongExtra(RecordService.EXTRA_TIME, 0) + " "
+                    countDownTextView.setText((millisUntilFinished - 1) / 1000 + " "
                             + getString(R.string.remainig_time));
                     recordButton.setBackgroundResource(R.drawable.stop_record_icon);
                     backgroundImage = R.drawable.stop_record_icon;
-                    Log.d(MEMOS_RECORD_ACTIVITY_TAG, "Receive message onTick()");
-                    stop = true;
                 }
-                if (intent.getAction().equals(RecordService.ACTION_FINISH) && !isFinishing()) {
+
+                @Override
+                public void onFinish() {
+                    Log.d(MEMOS_RECORD_ACTIVITY_TAG, "recorder stopped onFinish()");
+                    recordService.stopRecording();
                     recordButton.setBackgroundResource(R.drawable.record_icon);
                     backgroundImage = R.drawable.record_icon;
                     showAlertDialog();
                     getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit()
                             .putBoolean(PREFS_SHOW_DIALOG, true).commit();
                     isDialogShowed = true;
-                    stop = false;
-                    Log.d(MEMOS_RECORD_ACTIVITY_TAG, "Receive message FINISH");
-                    stopService(serviceIntent);
+
                 }
-
-            }
-        };
-        IntentFilter intentFilter = new IntentFilter(VoiceMemosActivity.ACTION_SAVE_MEMO);
-        intentFilter.addAction(VoiceMemosActivity.ACTION_BACK_TO_MAIN);
-        intentFilter.addAction(RecordService.ACTION_UPDATE_TIME);
-        intentFilter.addAction(RecordService.ACTION_FINISH);
-
-        LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(receiver, intentFilter);
-
-        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-            if (RecordService.class.getName().equals(service.service.getClassName())) {
-                countDownTextView.setVisibility(TextView.VISIBLE);
-                backgroundImage = R.drawable.stop_record_icon;
-                stop = true;
-            }
-
-        }
-    }
-
-    boolean stop = false;
-
-    @Override
-    public void onClick(View v) {
-
-        if (stop) {
-            stop = false;
-            recordButton.setBackgroundResource(R.drawable.record_icon);
-            backgroundImage = R.drawable.record_icon;
-            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(new Intent(ACTION_STOP_RECORD));
-            showAlertDialog();
-            isDialogShowed = true;
-            getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit().putBoolean(PREFS_SHOW_DIALOG, true)
-                    .commit();
-            stopService(serviceIntent);
-
-        } else {
-            stop = true;
-            recordButton.setBackgroundResource(R.drawable.stop_record_icon);
-            backgroundImage = R.drawable.stop_record_icon;
-            startService(serviceIntent);
+            }.start();
 
         }
 
@@ -213,10 +223,6 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
                     Log.d(MEMOS_RECORD_ACTIVITY_TAG, "renaming succes");
                 else
                     Log.d(MEMOS_RECORD_ACTIVITY_TAG, "renaming failed");
-
-                listDateTime = sharedPreferences.getStringSet(PREFS_DATE_TIME, new HashSet<String>());
-                listDateTime.add(getCurrentDataAndTime());
-                preferencesEditor.putStringSet(PREFS_DATE_TIME, listDateTime);
                 preferencesEditor.commit();
                 getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit()
                         .putBoolean(PREFS_SHOW_DIALOG, false).commit();
@@ -238,51 +244,6 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
         });
         alertDialog.show();
 
-    }
-
-    private String getCurrentDataAndTime() {
-        Calendar calendar = Calendar.getInstance();
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
-        int month = calendar.get(Calendar.MONTH) + 1;
-        int year = calendar.get(Calendar.YEAR);
-        int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        int minute = calendar.get(Calendar.MINUTE);
-        int second = calendar.get(Calendar.SECOND);
-        String formatedDay;
-        String formatedMonth;
-        String formatedMinute;
-        String formatedHour;
-        String formatedSecond;
-
-        if (day < 10)
-            formatedDay = "0" + day;
-        else
-            formatedDay = "" + day;
-
-        if (month < 10)
-            formatedMonth = "0" + month;
-        else
-            formatedMonth = "" + month;
-
-        if (hour < 10)
-            formatedHour = "0" + hour;
-        else
-            formatedHour = "" + hour;
-
-        if (second < 10)
-            formatedSecond = "0" + second;
-        else
-            formatedSecond = "" + second;
-
-        if (minute < 10)
-            formatedMinute = "0" + minute;
-        else
-            formatedMinute = "" + minute;
-
-        String time = formatedHour + ":" + formatedMinute + ":" + formatedSecond;
-        String date = formatedDay + "/" + formatedMonth + "/" + year;
-        String dateTime = date + "\n" + time;
-        return dateTime;
     }
 
     private String getPostfix(int postfix) {
@@ -311,5 +272,25 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
         file.renameTo(renaimed);
         return file;
     }
+
+    private ServiceConnection connection = new ServiceConnection() {
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            isBinded = false;
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            RecordBinder binder = (RecordBinder) service;
+            recordService = binder.getService();
+            if (recordService.isRecorded()) {
+                countDownTextView.setVisibility(TextView.VISIBLE);
+                backgroundImage = R.drawable.stop_record_icon;
+            }
+            isBinded = true;
+
+        }
+    };
 
 }
