@@ -5,6 +5,8 @@ import java.util.Calendar;
 import java.util.HashSet;
 import java.util.Set;
 
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningServiceInfo;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -17,7 +19,6 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Environment;
 import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.View;
@@ -26,7 +27,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 public class VoiceMemosRecordActivity extends FragmentActivity implements OnClickListener {
     public final static String MEMOS_RECORD_ACTIVITY_TAG = VoiceMemosRecordActivity.class.getSimpleName();
@@ -120,6 +120,16 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
         intentFilter.addAction(RecordService.ACTION_FINISH);
 
         LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(receiver, intentFilter);
+
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (RecordService.class.getName().equals(service.service.getClassName())) {
+                countDownTextView.setVisibility(TextView.VISIBLE);
+                backgroundImage = R.drawable.stop_record_icon;
+                stop = true;
+            }
+
+        }
     }
 
     boolean stop = false;
