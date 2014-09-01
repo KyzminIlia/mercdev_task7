@@ -76,13 +76,14 @@ public class VoiceMemosActivity extends FragmentActivity implements OnItemClickL
                 if (intent.getAction().equals(ACTION_SAVE_MEMO) && !isFinishing()) {
                     isInRecordingFragment = false;
                     memoList.invalidateViews();
+                    Log.d(ACTIVITY_TAG, "Receive message SAVE MEMO");
 
                 }
                 if (intent.getAction().equals(ACTION_BACK_TO_MAIN) && !isFinishing()) {
                     isInRecordingFragment = false;
+                    Log.d(ACTIVITY_TAG, "Receive message BACK TO MAIN");
 
                 }
-                Log.d(ACTIVITY_TAG, "Receive message");
 
             }
         };

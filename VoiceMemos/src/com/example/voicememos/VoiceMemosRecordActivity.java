@@ -55,7 +55,6 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
     @Override
     public void onBackPressed() {
         LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(new Intent(ACTION_STOP_RECORD));
-
         stopService(serviceIntent);
         finish();
         super.onBackPressed();
@@ -98,21 +97,20 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
                             + getString(R.string.remainig_time));
                     recordButton.setBackgroundResource(R.drawable.stop_record_icon);
                     backgroundImage = R.drawable.stop_record_icon;
+                    Log.d(MEMOS_RECORD_ACTIVITY_TAG, "Receive message onTick()");
                     stop = true;
                 }
                 if (intent.getAction().equals(RecordService.ACTION_FINISH) && !isFinishing()) {
                     recordButton.setBackgroundResource(R.drawable.record_icon);
                     backgroundImage = R.drawable.record_icon;
-                    FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
                     showAlertDialog();
                     getSharedPreferences(VoiceMemosActivity.PREFS_DEFAULT_INDEX, 0).edit()
                             .putBoolean(PREFS_SHOW_DIALOG, true).commit();
                     isDialogShowed = true;
                     stop = false;
+                    Log.d(MEMOS_RECORD_ACTIVITY_TAG, "Receive message FINISH");
                     stopService(serviceIntent);
                 }
-
-                Log.d(MEMOS_RECORD_ACTIVITY_TAG, "Receive message");
 
             }
         };
@@ -142,7 +140,7 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
 
         } else {
             stop = true;
-             recordButton.setBackgroundResource(R.drawable.stop_record_icon);
+            recordButton.setBackgroundResource(R.drawable.stop_record_icon);
             backgroundImage = R.drawable.stop_record_icon;
             startService(serviceIntent);
 
@@ -195,9 +193,8 @@ public class VoiceMemosRecordActivity extends FragmentActivity implements OnClic
                     Log.d(MEMOS_RECORD_ACTIVITY_TAG, voiceMemoFile.getPath() + " exist");
                 } else
                     Log.d(MEMOS_RECORD_ACTIVITY_TAG, voiceMemoFile.getName() + " lost");
-                Log.d(MEMOS_RECORD_ACTIVITY_TAG, "Try rename " + voiceMemoFile.getPath() + " to "
-                        + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).getPath()
-                        + "/VoiceMemos/" + memoName.getText().toString() + getString(R.string.deafult_extension));
+                Log.d(MEMOS_RECORD_ACTIVITY_TAG,
+                        "Try rename " + voiceMemoFile.getPath() + " to " + renaimedFile.getPath());
                 boolean succes = voiceMemoFile.renameTo(renaimedFile);
 
                 if (succes)

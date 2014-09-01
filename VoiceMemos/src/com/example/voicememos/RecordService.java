@@ -31,9 +31,12 @@ public class RecordService extends Service {
 
     @Override
     public void onDestroy() {
-        if (mediaRecorder != null)
+        if (mediaRecorder != null) {
             stopRecording();
+            Log.d(SERVICE_TAG, "recorder stopped onDestroy()");
+        }
         timer.cancel();
+        Log.d(SERVICE_TAG, "onDestroy()");
         super.onDestroy();
     }
 
@@ -44,38 +47,14 @@ public class RecordService extends Service {
             @Override
             public void onReceive(Context arg0, Intent intent) {
                 if (intent.getAction().equals(VoiceMemosRecordActivity.ACTION_STOP_RECORD)) {
+                    Log.d(SERVICE_TAG, "recorder stopped on ACTION_STOP");
                     timer.cancel();
                     stopRecording();
-
-                }
-                if (intent.getAction().equals(VoiceMemosRecordActivity.ACTION_START_RECORD)) {
-                    startRecording();
-                    timer = new CountDownTimer(11000, 1000) {
-
-                        @Override
-                        public void onTick(long millisUntilFinished) {
-                            Intent tickIntent = new Intent(ACTION_UPDATE_TIME);
-                            tickIntent.putExtra(EXTRA_TIME, (millisUntilFinished - 1) / 1000);
-                            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(tickIntent);
-                            Log.d(SERVICE_TAG, "onTick()");
-                        }
-
-                        @Override
-                        public void onFinish() {
-                            Intent finishIntent = new Intent(ACTION_FINISH);
-                            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(finishIntent);
-                            stopRecording();
-                            Log.d(SERVICE_TAG, "onFinish()");
-                        }
-                    }.start();
-
                 }
             }
-
         };
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(VoiceMemosRecordActivity.ACTION_STOP_RECORD);
-        intentFilter.addAction(VoiceMemosRecordActivity.ACTION_START_RECORD);
         LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(receiver, intentFilter);
         Log.d(SERVICE_TAG, "service onCreate()");
 
@@ -84,6 +63,7 @@ public class RecordService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent.getAction().equals(VoiceMemosRecordActivity.ACTION_START_RECORD)) {
+            Log.d(SERVICE_TAG, "recorder started onStartCommand");
             startRecording();
             timer = new CountDownTimer(11000, 1000) {
 
@@ -97,10 +77,11 @@ public class RecordService extends Service {
 
                 @Override
                 public void onFinish() {
+                    Log.d(SERVICE_TAG, "recorder stopped onFinish()");
                     Intent finishIntent = new Intent(ACTION_FINISH);
                     LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(finishIntent);
                     stopRecording();
-                    Log.d(SERVICE_TAG, "onFinish()");
+
                 }
             }.start();
 
@@ -131,10 +112,13 @@ public class RecordService extends Service {
     }
 
     private void stopRecording() {
-        mediaRecorder.stop();
-        mediaRecorder.reset();
-        mediaRecorder.release();
-        mediaRecorder = null;
+        Log.d(SERVICE_TAG, "recorder stopped in stoprecording. MediaRecorder is " + mediaRecorder);
+        if (mediaRecorder != null) {
+            mediaRecorder.stop();
+            mediaRecorder.reset();
+            mediaRecorder.release();
+            mediaRecorder = null;
+        }
     }
 
     @Override
